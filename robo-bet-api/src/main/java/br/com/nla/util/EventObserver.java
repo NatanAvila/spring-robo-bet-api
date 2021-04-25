@@ -8,21 +8,25 @@ import java.util.HashSet;
 import java.util.Set;
 
 import javax.annotation.PostConstruct;
+import javax.inject.Singleton;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import br.com.nla.entidade.Jogo;
+import br.com.nla.entidade.Mercado;
 import lombok.Getter;
 
 @Service
 @EnableScheduling
+@Singleton
 public class EventObserver {
 
 	@Getter
-	public Set<Jogo> jogos;
+	private Set<Jogo> jogos;
 
 	@PostConstruct
 	public void init() {
@@ -43,7 +47,14 @@ public class EventObserver {
 			_substring = _substring.substring(_substring.indexOf("=") + 1, _substring.lastIndexOf("}") + 1);
 			JSONObject jsonObject = new JSONObject(_substring);
 			JSONObject data = jsonObject.getJSONObject("data");
-			System.out.println(data.toString());
+			JSONObject event = data.getJSONObject("event");
+
+			JSONArray mercadosPrincipais = event.getJSONArray("markets");
+
+			for (var obj : mercadosPrincipais) {
+				jogo.getMercados().add(new Mercado(new JSONObject(obj.toString())));
+			}
+			jogo.setCompleto(true);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
