@@ -52,7 +52,10 @@ public class EventObserver {
 			JSONArray mercadosPrincipais = event.getJSONArray("markets");
 
 			for (var obj : mercadosPrincipais) {
-				jogo.getMercados().add(new Mercado(new JSONObject(obj.toString())));
+				JSONObject jsMercado = new JSONObject(obj.toString());
+				if(jsMercado.getString("name").equalsIgnoreCase("Resultado Final")) {
+					jogo.getMercados().add(new Mercado(jsMercado));
+				}
 			}
 			jogo.setCompleto(true);
 		} catch (Exception e) {

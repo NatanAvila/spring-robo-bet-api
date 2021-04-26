@@ -1,4 +1,4 @@
-package br.com.nla.phantomjs;
+package br.com.nla.schedule;
 
 import java.io.IOException;
 import java.net.URI;
@@ -21,7 +21,7 @@ import br.com.nla.util.EventObserver;
 
 @Component
 @EnableScheduling
-public class PhantomBot {
+public class JogosFutebolSchedule {
 
 	@Autowired
 	public EventObserver observer;

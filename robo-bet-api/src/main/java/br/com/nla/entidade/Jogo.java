@@ -24,6 +24,9 @@ public class Jogo {
 	@EqualsAndHashCode.Exclude
 	private boolean completo;
 	
+	@EqualsAndHashCode.Exclude
+	private boolean notificado;
+	
 	public Jogo (JSONObject json) {
 		this.url = json.getString("url");
 		this.titulo = json.getString("name");
