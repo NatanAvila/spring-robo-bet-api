@@ -57,7 +57,7 @@ public class EventObserver {
 					jogo.getMercados().add(new Mercado(jsMercado, jogo));
 				}
 			}
-			return jogoRepository.save(jogo);
+			return jogoRepository.saveAndFlush(jogo);
 		} catch (Exception e) {
 			e.printStackTrace();
 			return null;
@@ -65,8 +65,8 @@ public class EventObserver {
 	}
 
 	private boolean isMercadoPermitido(String nomeMercado) {
-		return nomeMercado.equalsIgnoreCase("Resultado Final") || nomeMercado.contains("asiatico")
-				|| nomeMercado.contains("asiático");
+		return nomeMercado.equalsIgnoreCase("Resultado Final")
+				|| (nomeMercado.contains("asiático") && !nomeMercado.contains("Tempo"));
 	}
 
 }

@@ -1,5 +1,7 @@
 package br.com.nla.entidade;
 
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -27,14 +29,22 @@ public class Jogo extends Entidade {
 	private String url;
 
 	private String titulo;
+	
+	private String campeonato;
+	
+	private LocalDateTime data;
 
 	@OneToMany(cascade = CascadeType.ALL, mappedBy = "jogo", orphanRemoval = true, fetch = FetchType.EAGER)
 	private Set<Mercado> mercados;
 
 	public Jogo(JSONObject json) {
+		var location = json.getJSONObject("location");
 		this.url = json.getString("url");
 		this.titulo = json.getString("name");
 		this.mercados = new HashSet<>();
+		OffsetDateTime odt = OffsetDateTime.parse(json.getString("startDate"));
+		this.data = odt.toLocalDateTime();
+		this.campeonato = location.getString("name");
 	}
 
 }

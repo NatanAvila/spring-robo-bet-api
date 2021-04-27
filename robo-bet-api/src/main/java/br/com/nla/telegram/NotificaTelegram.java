@@ -1,6 +1,8 @@
 package br.com.nla.telegram;
 
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -15,6 +17,7 @@ import org.springframework.util.CollectionUtils;
 import com.pengrad.telegrambot.TelegramBot;
 import com.pengrad.telegrambot.UpdatesListener;
 import com.pengrad.telegrambot.model.Update;
+import com.pengrad.telegrambot.model.request.ParseMode;
 import com.pengrad.telegrambot.request.SendMessage;
 
 import br.com.nla.entidade.Jogo;
@@ -57,45 +60,57 @@ public class NotificaTelegram {
 
 	@Scheduled(cron = "* */1 * * * *")
 	public synchronized void notificaTelegram() {
-		boolean alteracao = false;
-		for (var jogo : eventObserver.getJogos()) {
-
-			if (!CollectionUtils.isEmpty(chats)) {
-				for (var chat : chats) {
-					if (notificacoes.stream().noneMatch(nt -> nt.getChat().equals(chat))) {
-						notificacoes.add(new Notificacao(chat));
-					}
-					for (var nt : notificacoes.stream().filter(nt -> !nt.getJogos().contains(jogo))
-							.collect(Collectors.toList())) {
+		if (!CollectionUtils.isEmpty(chats)) {
+			for (var chat : chats) {
+				boolean alteracao = false;
+				if (notificacoes.stream().noneMatch(nt -> nt.getChat().equals(chat))) {
+					notificacoes.add(new Notificacao(chat));
+				}
+				var notificacao = notificacoes.stream().filter(nt -> Objects.equals(nt.getChat(), chat)).findFirst()
+						.get();
+				for (var jogo : eventObserver.getJogos()) {
+					if (!notificacao.getJogos().contains(jogo)) {
 						notificarChat(jogo, chat);
-						nt.getJogos().add(jogo);
+						notificacao.getJogos().add(jogo);
 						alteracao = true;
 					}
+
+				}
+				if (alteracao) {
+					notificacaoRepository.save(notificacao);
 				}
 			}
+			
 		}
 
-		if (alteracao) {
-			notificacaoRepository.saveAll(notificacoes);
-		}
+		
 	}
 
 	private String getMessage(Jogo jogo) {
+		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 		StringBuilder msg = new StringBuilder();
-		msg.append("Jogo: ");
+		msg.append("*CAMPEONATO*: ");
+		msg.append(jogo.getCampeonato());
+		msg.append("\n");
+		msg.append("*JOGO*: ");
 		msg.append(jogo.getTitulo());
 		msg.append("\n");
-		msg.append("LINK: ");
+		msg.append("*LINK*: ");
 		msg.append(jogo.getUrl());
 		msg.append("\n");
+		msg.append("*DATA*: ");
+		msg.append(formatter.format(jogo.getData()));
+		msg.append("\n\n");
 
 		for (var mercado : jogo.getMercados()) {
+			msg.append("*");
 			msg.append(mercado.getNome());
+			msg.append("*");
 			msg.append(": \n");
 			for (var odd : mercado.getOdds()) {
 				msg.append(odd.getNome());
-				msg.append(" ");
-				msg.append("ODD: ");
+				msg.append(" - ");
+				msg.append("*ODD*: ");
 				msg.append(odd.getValor());
 				msg.append("\n");
 			}
@@ -105,7 +120,9 @@ public class NotificaTelegram {
 	}
 
 	private void notificarChat(Jogo jogo, Long chat) {
-		bot.execute(new SendMessage(chat, getMessage(jogo)));
+		SendMessage request = new SendMessage(chat, getMessage(jogo));
+		request.parseMode(ParseMode.Markdown);
+		bot.execute(request);
 	}
 
 }

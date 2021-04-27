@@ -9,8 +9,8 @@ import javax.persistence.MappedSuperclass;
 
 import lombok.Data;
 
-@MappedSuperclass
 @Data
+@MappedSuperclass
 public class Entidade implements Serializable{
 
 	private static final long serialVersionUID = -2519538288738425858L;
