@@ -1,11 +1,8 @@
 package br.com.nla.telegram;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import javax.annotation.PostConstruct;
 
@@ -21,11 +18,16 @@ import com.pengrad.telegrambot.model.Update;
 import com.pengrad.telegrambot.request.SendMessage;
 
 import br.com.nla.entidade.Jogo;
+import br.com.nla.entidade.Notificacao;
+import br.com.nla.repository.NotificacaoRepository;
 import br.com.nla.util.EventObserver;
 
 @Component
 @EnableScheduling
 public class NotificaTelegram {
+
+	@Autowired
+	private NotificacaoRepository notificacaoRepository;
 
 	@Autowired
 	private EventObserver eventObserver;
@@ -34,7 +36,7 @@ public class NotificaTelegram {
 
 	private TelegramBot bot;
 
-	private Map<Long, List<Jogo>> jogosNotificados;
+	private Set<Notificacao> notificacoes;
 
 	@PostConstruct
 	private void init() {
@@ -49,50 +51,61 @@ public class NotificaTelegram {
 				return 0;
 			}
 		});
-		chats = new HashSet<>();
-		jogosNotificados = new HashMap<>();
+		notificacoes = notificacaoRepository.findAll().stream().collect(Collectors.toSet());
+		chats = notificacoes.stream().map(Notificacao::getChat).collect(Collectors.toSet());
 	}
 
 	@Scheduled(cron = "* */1 * * * *")
-	public void notificaTelegram() {
-		eventObserver.getJogos().stream().filter(Jogo::isCompleto).filter(jg -> !jg.isNotificado()).forEach(jogo -> {
-			StringBuilder msg = new StringBuilder();
-			msg.append("Jogo: ");
-			msg.append(jogo.getTitulo());
-			msg.append("\n");
-			msg.append("LINK: ");
-			msg.append(jogo.getUrl());
-			msg.append("\n");
-
-			for (var mercado : jogo.getMercados()) {
-				msg.append(mercado.getNome());
-				msg.append(": ");
-				for (var odd : mercado.getOdds()) {
-					msg.append(odd.getNome());
-					msg.append(" ");
-					msg.append("ODD: ");
-					msg.append(odd.getValor());
-					msg.append("\n");
-				}
-				msg.append("\n");
-			}
+	public synchronized void notificaTelegram() {
+		boolean alteracao = false;
+		for (var jogo : eventObserver.getJogos()) {
 
 			if (!CollectionUtils.isEmpty(chats)) {
 				for (var chat : chats) {
-					boolean naoContemKey = !jogosNotificados.containsKey(chat);
-					if (naoContemKey || !jogosNotificados.get(chat).contains(jogo)) {
-						bot.execute(new SendMessage(chat, msg.toString()));
-						if (naoContemKey) {
-							var list = new ArrayList<Jogo>();
-							list.add(jogo);
-							jogosNotificados.put(chat, list);
-						} else {
-							jogosNotificados.get(chat).add(jogo);
-						}
+					if (notificacoes.stream().noneMatch(nt -> nt.getChat().equals(chat))) {
+						notificacoes.add(new Notificacao(chat));
+					}
+					for (var nt : notificacoes.stream().filter(nt -> !nt.getJogos().contains(jogo))
+							.collect(Collectors.toList())) {
+						notificarChat(jogo, chat);
+						nt.getJogos().add(jogo);
+						alteracao = true;
 					}
 				}
 			}
-		});
+		}
+
+		if (alteracao) {
+			notificacaoRepository.saveAll(notificacoes);
+		}
+	}
+
+	private String getMessage(Jogo jogo) {
+		StringBuilder msg = new StringBuilder();
+		msg.append("Jogo: ");
+		msg.append(jogo.getTitulo());
+		msg.append("\n");
+		msg.append("LINK: ");
+		msg.append(jogo.getUrl());
+		msg.append("\n");
+
+		for (var mercado : jogo.getMercados()) {
+			msg.append(mercado.getNome());
+			msg.append(": \n");
+			for (var odd : mercado.getOdds()) {
+				msg.append(odd.getNome());
+				msg.append(" ");
+				msg.append("ODD: ");
+				msg.append(odd.getValor());
+				msg.append("\n");
+			}
+			msg.append("\n");
+		}
+		return msg.toString();
+	}
+
+	private void notificarChat(Jogo jogo, Long chat) {
+		bot.execute(new SendMessage(chat, getMessage(jogo)));
 	}
 
 }

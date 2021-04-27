@@ -5,6 +5,8 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse.BodyHandlers;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -24,7 +26,7 @@ import br.com.nla.util.EventObserver;
 public class JogosFutebolSchedule {
 
 	@Autowired
-	public EventObserver observer;
+	private EventObserver observer;
 
 	@Scheduled(cron = "* */1 * * * *")
 	public void verificaJogosFutebol() {
@@ -43,14 +45,18 @@ public class JogosFutebolSchedule {
 
 	private void observaNovosJogos(HttpClient client, HttpRequest request) throws IOException, InterruptedException {
 		JSONArray array = getArrayJogos(client, request);
-
 		for (var obj : array) {
 			var js = new JSONObject(obj.toString());
-
-			Jogo jogo = new Jogo(js);
-			if (observer.getJogos().stream().noneMatch(objJogo -> Objects.equals(jogo.getUrl(), objJogo.getUrl()))) {
-				observer.getJogos().add(jogo);
-				System.out.println("Jogo Adicionado: " + jogo.getTitulo());
+			OffsetDateTime odt = OffsetDateTime.parse(js.getString("startDate"));
+			LocalDateTime datetime = odt.toLocalDateTime();
+			if(LocalDateTime.now().plusMinutes(5).isBefore(datetime)) {
+				Jogo jogo = new Jogo(js);
+				if (observer.getJogos().stream().noneMatch(objJogo -> Objects.equals(jogo.getUrl(), objJogo.getUrl()))) {
+					Jogo jogoPreenchido = observer.completarJogo(jogo);
+					if (Objects.nonNull(jogoPreenchido)) {
+						observer.getJogos().add(jogoPreenchido);
+					}
+				}
 			}
 		}
 	}

@@ -4,20 +4,21 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse.BodyHandlers;
-import java.util.HashSet;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Singleton;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.EnableScheduling;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import br.com.nla.entidade.Jogo;
 import br.com.nla.entidade.Mercado;
+import br.com.nla.repository.JogoRepository;
 import lombok.Getter;
 
 @Service
@@ -25,20 +26,18 @@ import lombok.Getter;
 @Singleton
 public class EventObserver {
 
+	@Autowired
+	private JogoRepository jogoRepository;
+
 	@Getter
 	private Set<Jogo> jogos;
 
 	@PostConstruct
 	public void init() {
-		jogos = new HashSet<>();
+		jogos = jogoRepository.findAll().stream().collect(Collectors.toSet());
 	}
 
-	@Scheduled(cron = "* */1 * * * *")
-	public void confereJogos() {
-		jogos.parallelStream().filter(jg -> !jg.isCompleto()).forEach(this::completarJogo);
-	}
-
-	private void completarJogo(Jogo jogo) {
+	public Jogo completarJogo(Jogo jogo) {
 		try {
 			HttpClient client = HttpClient.newHttpClient();
 			HttpRequest request = HttpRequest.newBuilder(new URI(jogo.getUrl())).GET().build();
@@ -53,14 +52,21 @@ public class EventObserver {
 
 			for (var obj : mercadosPrincipais) {
 				JSONObject jsMercado = new JSONObject(obj.toString());
-				if(jsMercado.getString("name").equalsIgnoreCase("Resultado Final")) {
-					jogo.getMercados().add(new Mercado(jsMercado));
+				String nomeMercado = jsMercado.getString("name").toLowerCase();
+				if (isMercadoPermitido(nomeMercado)) {
+					jogo.getMercados().add(new Mercado(jsMercado, jogo));
 				}
 			}
-			jogo.setCompleto(true);
+			return jogoRepository.save(jogo);
 		} catch (Exception e) {
 			e.printStackTrace();
+			return null;
 		}
+	}
+
+	private boolean isMercadoPermitido(String nomeMercado) {
+		return nomeMercado.equalsIgnoreCase("Resultado Final") || nomeMercado.contains("asiatico")
+				|| nomeMercado.contains("asiático");
 	}
 
 }
