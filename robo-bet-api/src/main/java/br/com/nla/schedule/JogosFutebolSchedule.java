@@ -33,9 +33,9 @@ public class JogosFutebolSchedule {
 		try {
 			List<String> urls = new ArrayList<>();
 			urls.add("https://br.betano.com/sport/futebol/competicoes/brasil/10004/");
-			urls.add("https://br.betano.com/sport/futebol/america-clubes/copa-libertadores/16775/");
-			urls.add("https://br.betano.com/sport/futebol/liga-dos-campeoes/182748/");
-			urls.add("https://br.betano.com/sport/futebol/espanha/5,10000,17592,193746/");
+//			urls.add("https://br.betano.com/sport/futebol/america-clubes/copa-libertadores/16775/");
+//			urls.add("https://br.betano.com/sport/futebol/liga-dos-campeoes/182748/");
+//			urls.add("https://br.betano.com/sport/futebol/espanha/5,10000,17592,193746/");
 			HttpClient client = HttpClient.newHttpClient();
 			for (var url : urls) {
 				HttpRequest request = HttpRequest.newBuilder(new URI(url)).GET().build();
@@ -52,13 +52,11 @@ public class JogosFutebolSchedule {
 			var js = new JSONObject(obj.toString());
 			OffsetDateTime odt = OffsetDateTime.parse(js.getString("startDate"));
 			LocalDateTime datetime = odt.toLocalDateTime();
-			if(LocalDateTime.now().plusMinutes(5).isBefore(datetime)) {
+			if (LocalDateTime.now().plusMinutes(5).isBefore(datetime)) {
 				Jogo jogo = new Jogo(js);
-				if (observer.getJogos().stream().noneMatch(objJogo -> Objects.equals(jogo.getUrl(), objJogo.getUrl()))) {
-					Jogo jogoPreenchido = observer.completarJogo(jogo);
-					if (Objects.nonNull(jogoPreenchido)) {
-						observer.getJogos().add(jogoPreenchido);
-					}
+				if (observer.getJogos().stream()
+						.noneMatch(objJogo -> Objects.equals(jogo.getUrl(), objJogo.getUrl()))) {
+					observer.getJogos().add(jogo);
 				}
 			}
 		}

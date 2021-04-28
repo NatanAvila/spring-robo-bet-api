@@ -2,7 +2,6 @@ package br.com.nla.telegram;
 
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -60,30 +59,27 @@ public class NotificaTelegram {
 
 	@Scheduled(cron = "* */1 * * * *")
 	public synchronized void notificaTelegram() {
-		if (!CollectionUtils.isEmpty(chats)) {
-			for (var chat : chats) {
-				boolean alteracao = false;
-				if (notificacoes.stream().noneMatch(nt -> nt.getChat().equals(chat))) {
-					notificacoes.add(new Notificacao(chat));
-				}
-				var notificacao = notificacoes.stream().filter(nt -> Objects.equals(nt.getChat(), chat)).findFirst()
-						.get();
-				for (var jogo : eventObserver.getJogos()) {
-					if (!notificacao.getJogos().contains(jogo)) {
-						notificarChat(jogo, chat);
-						notificacao.getJogos().add(jogo);
-						alteracao = true;
-					}
+		for (var chat : chats) {
+			boolean alteracao = false;
+			if (notificacoes.stream().noneMatch(nt -> nt.getChat().equals(chat))) {
+				notificacoes.add(new Notificacao(chat));
+			}
 
+			for (var notificacao : notificacoes) {
+				for (var jogo : eventObserver.getJogos()) {
+					if (!CollectionUtils.isEmpty(jogo.getMercados())) {
+						if (!notificacao.getJogos().contains(jogo)) {
+							notificarChat(jogo, chat);
+							notificacao.getJogos().add(jogo);
+							alteracao = true;
+						}
+					}
 				}
 				if (alteracao) {
 					notificacaoRepository.save(notificacao);
 				}
 			}
-			
 		}
-
-		
 	}
 
 	private String getMessage(Jogo jogo) {
